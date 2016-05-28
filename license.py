@@ -58,7 +58,17 @@ class License(dict):
             select_q = 'SELECT * FROM licenses WHERE ' + ' and '.join([key + '=?' for key in keys])
             result = cursor.execute(select_q, tuple(attributes[key] for key in keys))
 
-        return result.fetchall()
+        licenses = []
+        fields = License.get_fields()
+
+        for res in result.fetchall():
+            temp = License()
+            for i in range(len(res)):
+                temp[fields[i].eng] = res[i]
+
+            licenses.append(temp)
+
+        return licenses
 
     @staticmethod
     def get_fields():
