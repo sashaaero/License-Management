@@ -32,6 +32,17 @@ class License(dict):
         for field in self.fields:
             self[field.eng] = field.type()
 
+    def __str__(self):
+        res = ''
+        for field in self.fields:
+            value = self[field.eng] if field.type == str else str(self[field.eng])
+            if value == '' or value == '0':
+                continue
+
+            res += '%s: %s\n' % (field.eng, value)
+
+        return res[:-1] # убираем перенос строки после последнего данного
+
     def write(self):
         connection = sqlite3.connect('licenses.db')
         with connection:
@@ -50,7 +61,7 @@ class License(dict):
             cursor.execute(insert_q, tuple(self[field.eng] for field in self.fields))
 
     @staticmethod
-    def read(attributes):
+    def find(attributes):
         connection = sqlite3.connect('licenses.db')
         with connection:
             cursor = connection.cursor()
@@ -59,17 +70,14 @@ class License(dict):
             result = cursor.execute(select_q, tuple(attributes[key] for key in keys))
 
         licenses = []
-        fields = License.get_fields()
 
         for res in result.fetchall():
             temp = License()
             for i in range(len(res)):
-                temp[fields[i].eng] = res[i]
+                temp[License.fields[i].eng] = res[i]
 
             licenses.append(temp)
 
         return licenses
 
-    @staticmethod
-    def get_fields():
-        return License.fields
+

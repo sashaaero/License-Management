@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtWidgets import (QApplication, QWidget,
+from PyQt5.QtWidgets import (QWidget,
                              QLabel, QLineEdit, QDateEdit, QCalendarWidget, QGridLayout)
 
 from PyQt5.QtGui import QIntValidator
@@ -18,6 +18,7 @@ class Frame(QWidget):
 
     def __init__(self, desktop):
         super().__init__()
+        self.input_forms = {}
         self.initGUI(desktop)
         self.mode = self.FIND
 
@@ -33,8 +34,7 @@ class Frame(QWidget):
         grid = QGridLayout()
         grid.setSpacing(10)
 
-        fields = License.get_fields()
-        self.input_forms = {}
+        fields = License.fields
         # Делаем словарь, чтобы потом мы могли изменять данные
 
         i = 1
@@ -66,13 +66,3 @@ class Frame(QWidget):
         if start <= stop:
             print('Не выглядит правдой то, что лицензия истекает до ее активации')
 
-
-
-def main():
-    app = QApplication(sys.argv)
-    desktop = app.desktop().screenGeometry()
-    frame = Frame(desktop)
-    frame.show()
-    sys.exit(app.exec_())
-
-main()
