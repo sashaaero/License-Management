@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
 )
 
 from PyQt5.QtGui import QIntValidator
+from PyQt5.QtCore import QDate
 from license import License
 from datetime import date
 
@@ -75,17 +76,32 @@ class Frame(QWidget):
             i += 1
 
         self.setLayout(grid)
+        self.fill(License())
 
-        self.parse_license()
+    def fill(self, license):
+        for field in License.fields:
+            if field.type == date.today:
+                l_date = license[field.eng]
+                in_date = QDate(l_date.year, l_date.month, l_date.day)
+                self.input_forms[field.eng].setDate(in_date)
+
 
     def parse_license(self):
         curr_license = License()
-        fields = License.fields
-        for field in fields:
+        for field in License.fields:
             if field.type == date.today:
-                #curr_license[field.eng] = \
-                    #self.parse_date(str(self.input_forms[field.eng].dateTime()))
-                print(self.input_forms[field.eng].dateTime().toString())
+                curr_license[field.eng] = \
+                    self.input_forms[field.eng].date().toPyDate()
+                #print(self.input_forms[field.eng].dateTime().toPyDateTime().date())
+            else:
+                value = self.input_forms[field.eng].text()
+                if field.type == int:
+                    curr_license[field.eng] = int(value) if value else 0
+                else:
+                    curr_license[field.eng] = value
+
+
+        print(curr_license)
 
 
     def open_dialog(self, msg, header='Error'):
