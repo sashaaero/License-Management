@@ -79,5 +79,3 @@ class License(dict):
             licenses.append(temp)
 
         return licenses
-
-
