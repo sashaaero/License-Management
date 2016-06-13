@@ -3,6 +3,7 @@ import sys
 import license
 from frame import Frame
 
+
 def main():
     app = QApplication(sys.argv)
     desktop = app.desktop().screenGeometry()

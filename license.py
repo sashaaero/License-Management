@@ -1,6 +1,7 @@
 from datetime import date
 import sqlite3
 from collections import namedtuple
+from config import *
 
 field_model = namedtuple('field_model', ['eng', 'rus', 'type'])
 
@@ -12,8 +13,8 @@ class License(dict):
         field_model('id',               'п.3 № Лицензии',                                                   int),
         field_model('developer',        'п.4 Разработчик',                                                  str),
         field_model('firm',             'п.5 Фирма поставщик',                                              str),
-        field_model('delivery_date',    'п.6 Дата выдачи лицензии',                                         date.today),
-        field_model('expiration_date',  'п.7 Дата истечения периода программного сопровождения ',           date.today),
+        field_model('delivery_date',    'п.6 Дата выдачи лицензии',                                         date),
+        field_model('expiration_date',  'п.7 Дата истечения периода программного сопровождения ',           date),
         field_model('license_key',      'п.8 Лицензионный ключ',                                            str),
         field_model('letter',           'п.8а Лицензионный договор или соответствующее письмо',             str),
         field_model('note',             'п.8б Примечание',                                                  str),
@@ -30,21 +31,38 @@ class License(dict):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         for field in self.fields:
-            self[field.eng] = field.type()
+            self[field.eng] = None
 
     def __str__(self):
+        """
+        Когда-то была идея предпоказа данных в лицензии
+        как хинт при наведении на номер лицензии, но сейчас кажется бесполезным
+        """
         res = ''
         for field in self.fields:
             value = self[field.eng] if field.type == str else str(self[field.eng])
             if value == '' or value == '0':
                 continue
 
-            res += '%s: %s\n' % (field.eng, value)
+            res += '%s: %s\n' % (field.rus, value)
 
-        return res[:-1] # убираем перенос строки после последнего данного
+        return res[:-1]  # убираем перенос строки после последнего данного
+
+    def delete(self):
+        """
+        Удаляет данную лицензию
+        """
+        connetion = sqlite3.connect(database)
+        with connetion:
+            cursor = connetion.cursor()
+            cursor.execute('DELETE FROM licenses WHERE id=?', (self['id'],))
 
     def write(self):
-        connection = sqlite3.connect('licenses.db')
+        """
+        Записывает лицензию в базу
+        По пути проверяет, есть ли такая таблица, если что -- создает ее и записывает
+        """
+        connection = sqlite3.connect(database)
         with connection:
             cursor = connection.cursor()
             check_q = 'SELECT name FROM sqlite_master WHERE type="table" AND name="licenses";'
@@ -57,25 +75,53 @@ class License(dict):
                 cursor.execute(create_q)
                 connection.commit()
 
-            insert_q = 'INSERT INTO licenses VALUES (' + '?, ' * (len(self.fields) - 1) + '?)'
+            insert_q = 'INSERT OR REPLACE INTO licenses VALUES (' + '?, ' * (len(self.fields) - 1) + '?)'
             cursor.execute(insert_q, tuple(self[field.eng] for field in self.fields))
 
+
     @staticmethod
-    def find(attributes):
-        connection = sqlite3.connect('licenses.db')
+    def get_by_id(_id):
+        """
+        Возвращает лицензию по айди.
+        Если в базе нет таблицы licenses -- создает её
+        """
+        connection = sqlite3.connect(database)
         with connection:
             cursor = connection.cursor()
-            keys = list(attributes.keys())
-            select_q = 'SELECT * FROM licenses WHERE ' + ' and '.join([key + '=?' for key in keys])
-            result = cursor.execute(select_q, tuple(attributes[key] for key in keys))
+            try:
+                res = cursor.execute('SELECT * FROM licenses WHERE "id"=?', (str(_id),))
+                obj = res.fetchall()
+                if len(obj) == 0:
+                    return
 
-        licenses = []
+                obj = obj[0]
+                license = License()
+                for i in range(len(obj)):
+                    license[License.fields[i].eng] = obj[i]
 
-        for res in result.fetchall():
-            temp = License()
-            for i in range(len(res)):
-                temp[License.fields[i].eng] = res[i]
+                return license
+            except sqlite3.OperationalError:
+                create_q = 'CREATE TABLE licenses (' + ', '.join([field.eng
+                                                                  if field.eng != 'id' else 'id INTEGER PRIMARY KEY'
+                                                                  for field in License.fields]) + ')'
+                cursor.execute(create_q)
+                connection.commit()
 
-            licenses.append(temp)
+    @staticmethod
+    def find(attributes=None):
+        """
+        Возвращает список id лицензий, которые подходят под заданные атрибуты
+        Атрибуты могут быть пустыми
+        """
+        connection = sqlite3.connect(database)
+        with connection:
+            cursor = connection.cursor()
+            select_q = 'SELECT id FROM licenses '
+            if attributes:
+                keys = list(attributes.keys())
+                select_q += 'WHERE ' + ' and '.join([key + '=?' for key in keys])
+                result = cursor.execute(select_q, tuple(attributes[key] for key in keys))
+            else:
+                result = cursor.execute(select_q)
 
-        return licenses
+        return [_id[0] for _id in result.fetchall()]
